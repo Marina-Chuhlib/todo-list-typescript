@@ -1,4 +1,4 @@
-import { ITodo } from "../../shared/types";
+import { ITodo } from "../../shared/interfaces";
 
 import TodoItem from "../TodoItem/TodoItem";
 

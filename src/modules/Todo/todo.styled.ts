@@ -60,6 +60,7 @@ const Input = styled.input`
 `;
 
 const Filter = styled.select`
+  cursor: pointer;
   border-radius: 5px;
   border: none;
   border: 1px solid #667b68;

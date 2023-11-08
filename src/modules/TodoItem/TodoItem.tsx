@@ -3,7 +3,7 @@ import React from "react";
 import Checkbox from "@mui/material/Checkbox";
 import Button from "../../shared/components/Button.tsx/Button";
 
-import { ITodo } from "../../shared/types";
+import { ITodo } from "../../shared/interfaces";
 
 import { Item, Wrapper, Title, CreatedDate } from "./todoItem.styled";
 
