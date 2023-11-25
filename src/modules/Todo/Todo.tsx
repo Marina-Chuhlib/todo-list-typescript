@@ -1,12 +1,18 @@
 import React, {
   FC,
   useEffect,
-  useRef,
   useState,
   ChangeEventHandler,
   KeyboardEventHandler,
 } from "react";
 import { useNavigate } from "react-router-dom";
+
+import {
+  fetchData,
+  postData,
+  removeById,
+  updateTodo,
+} from "../../shared/services/api";
 
 import { ITodo } from "../../shared/interfaces";
 
@@ -18,8 +24,6 @@ import { Section, Title, Input, Wrapper, Filter } from "./todo.styled";
 
 import Loader from "../../shared/components/Loader/Loader";
 
-const BASE_URL = "https://647874fa362560649a2dceb2.mockapi.io/app";
-
 const Todo: FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [value, setValue] = useState("");
@@ -28,22 +32,16 @@ const Todo: FC = () => {
   const [filterTitle, setFilterTitle] = useState("Total tasks");
   const [filter, setFilter] = useState(false);
 
+  let storedTodo: string | null = localStorage.getItem("filteredTodo");
+
   const navigate: (path: string, options?: { replace?: boolean }) => void =
     useNavigate();
 
-  // const inputRef = useRef<HTMLInputElement>(null);
-
-  const fetchData = async (): Promise<void> => {
+  const getTodos = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${BASE_URL}/todos`);
-      const data: ITodo[] = await response.json();
-
-      const sortedData = data
-        .map((item) => ({ ...item, createdAt: new Date(item.createdAt) }))
-        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-      setTodo(sortedData);
+      const data = await fetchData();
+      setTodo(data);
     } catch (error) {
       console.log(error);
       throw error;
@@ -53,28 +51,44 @@ const Todo: FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    getTodos();
   }, []);
 
   useEffect(() => {
-    setFilteredTodo(todo);
-  }, [todo]);
+    if (storedTodo && filterTitle !== "Total tasks") {
+      const parsedTodo = JSON.parse(storedTodo);
+      setFilteredTodo(parsedTodo);
+    } else {
+      setFilteredTodo(todo);
+    }
+  }, [todo, storedTodo, filterTitle]);
 
   const goBackBtn = (): void => {
     navigate("/");
   };
 
-  const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
-    setValue(e.target.value);
-    const filteredItems = todo.filter((item) =>
-      item.title.toLowerCase().includes(e.target.value.toLowerCase())
-    );
+  const getFilteredItems = (items: ITodo[], inputValue: string): ITodo[] =>
+    items.filter((item) => item.title.toLowerCase().includes(inputValue));
 
-    if (filteredItems.length === 0 || e.target.value === "") {
+  const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+    const inputValue: string = e.target.value.toLowerCase();
+    setValue(e.target.value);
+
+    const filteredItems = getFilteredItems(todo, inputValue);
+
+    if (filteredItems.length === 0 || inputValue === "") {
       setFilteredTodo(todo);
+
+
     } else {
       setFilteredTodo(filteredItems);
       setFilter(true);
+    }
+
+    if (filterTitle !== "Total tasks" && storedTodo) {
+      const parsedTodo: ITodo[] = JSON.parse(storedTodo);
+      const filteredItems = getFilteredItems(parsedTodo, inputValue);
+      setFilteredTodo(filteredItems);
     }
   };
 
@@ -87,27 +101,27 @@ const Todo: FC = () => {
     return Boolean(result);
   };
 
-  const postData = async (): Promise<void> => {
+  const postTodo = async (value: string): Promise<void> => {
     try {
-      const requestOptions: RequestInit = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: value,
-          complete: false,
-          createdAt: new Date(),
-        }),
-      };
+      const data = await postData(value);
+      if (data) {
+        setTodo((prevTodo: ITodo[]) => [data, ...prevTodo]);
 
-      const response = await fetch(`${BASE_URL}/todos`, requestOptions);
-
-      const data: ITodo = await response.json();
-      setTodo((prevTodo: ITodo[]) => [data, ...prevTodo]);
+        return;
+      }
     } catch (error) {
       console.log(error);
     }
+
+    // if (filterTitle === "Total unmarked tasks") {
+    //   setFilteredTodo((prevTodot: ITodo[]) => [data, ...prevTodot]);
+    //   console.log(filteredTodo, "in");
+
+      // localStorage.setItem(
+      //   "filteredTodo",
+      //   JSON.stringify(todo)
+    //   );
+    // }
   };
 
   const addTodo = (): void => {
@@ -122,121 +136,71 @@ const Todo: FC = () => {
     }
 
     setValue("");
-    postData();
-  };
+    postTodo(value);
 
+  
+  };
+  
   const removeTodo = async (id: number): Promise<void> => {
     try {
-      const requestOptions: RequestInit = {
-        method: "DELETE",
-      };
+      const isDeleted = await removeById(id);
 
-      if (filter) {
-        setFilterTitle("Total Tasks");
-      }
-
-      const response = await fetch(`${BASE_URL}/todos/${id}`, requestOptions);
-
-      if (response.ok) {
+      if (isDeleted) {
         setTodo((prevTodo: ITodo[]) =>
           prevTodo.filter((item: ITodo) => item.id !== id)
         );
+
+        setFilteredTodo((prevFilteredTodo: ITodo[]) =>
+          prevFilteredTodo.filter((item: ITodo) => item.id !== id)
+        );
+
         setValue("");
-      } else {
-        alert("Failed to remove todo");
+
+        const updatedFilteredTodo = filteredTodo.filter(
+          (item: ITodo) => item.id !== id
+        );
+
+        localStorage.setItem(
+          "filteredTodo",
+          JSON.stringify(updatedFilteredTodo)
+        );
       }
     } catch (error) {
       console.log(error);
     }
   };
 
-  const toggleTodoData = async (
-    id: number,
-    complete: boolean
-  ): Promise<void> => {
+  const toggleTodo = async (id: number): Promise<void> => {
     try {
-      const requestOptions: RequestInit = {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          complete: complete,
-        }),
-      };
+      const updatedTodo: ITodo[] = todo.map((item: ITodo) =>
+        item.id === id ? { ...item, complete: !item.complete } : item
+      );
 
-      await fetch(`${BASE_URL}/todos/${id}`, requestOptions);
+      setTodo(updatedTodo);
+      setValue("");
+      setFilter(true);
+
+      const todoItem: ITodo | undefined = todo.find(
+        (item: ITodo) => item.id === id
+      );
+
+      const complete: boolean = todoItem ? !todoItem.complete : false;
+      await updateTodo(id, complete);
+
+      const filteredTodos: ITodo[] = updatedTodo.filter((item) => {
+        if (filterTitle === "Total marked tasks") {
+          return item.complete;
+        } else if (filterTitle === "Total unmarked tasks") {
+          return !item.complete;
+        }
+        return true;
+      });
+
+      localStorage.setItem("filteredTodo", JSON.stringify(filteredTodos));
+      setFilteredTodo(filteredTodos);
     } catch (error) {
       console.log(error);
     }
-  };
-
-  // const toggleTodo = (id: number): void => {
-  //   const updatedTodo: ITodo[] = todo.map((item: ITodo) =>
-  //     item.id === id ? { ...item, complete: !item.complete } : item
-  //   );
-
-  // let filteredItems: ITodo[] = updatedTodo;
-  // if (filterTitle === "Total marked tasks") {
-  //   filteredItems = updatedTodo.filter(
-  //     (item: ITodo) => item.complete === true
-  //   );
-  // } else if (filterTitle === "Total unmarked tasks") {
-  //   filteredItems = updatedTodo.filter(
-  //     (item: ITodo) => item.complete === false
-  //   );
-  // }
-
-  // setFilteredTodo(filteredItems);
-  //   setTodo(updatedTodo);
-  //   setValue("");
-  //   setFilter(true);
-
-  //   const todoItem: ITodo | undefined = updatedTodo.find(
-  //     (item: ITodo) => item.id === id
-  //   );
-
-  //   const complete: boolean = todoItem ? todoItem.complete : false;
-  //   toggleTodoData(id, complete);
-  // };
-
-  const toggleTodo = (id: number): void => {
-    const updatedTodo: ITodo[] = todo.map((item: ITodo) =>
-      item.id === id ? { ...item, complete: !item.complete } : item
-    );
-
-    // setFilteredTodo((prevFilteredTodo: ITodo[]) =>
-    //   prevFilteredTodo.map((filteredItem: ITodo) =>
-    //     filteredItem.id === id
-    //       ? { ...filteredItem, complete: !filteredItem.complete }
-    //       : filteredItem
-    //   )
-    // );
-
-    setTodo(updatedTodo);
-    setValue("");
-    setFilter(true);
-
-    const todoItem: ITodo | undefined = todo.find(
-      (item: ITodo) => item.id === id
-    );
-
-    const complete: boolean = todoItem ? !todoItem.complete : false;
-    toggleTodoData(id, complete);
-
-    // let filteredItems: ITodo[] = updatedTodo;
-    // if (filterTitle === "Total marked tasks") {
-    //   filteredItems = updatedTodo.filter(
-    //     (item: ITodo) => item.complete === true
-    //   );
-    // } else if (filterTitle === "Total unmarked tasks") {
-    //   filteredItems = updatedTodo.filter(
-    //     (item: ITodo) => item.complete === false
-    //   );
-    // }
-    // console.log(filteredItems, "filteredItems");
-    
-    setFilterTitle("Total tasks");
   };
 
   const handelKeyboardChange: KeyboardEventHandler<HTMLInputElement> = (e) => {
@@ -250,21 +214,22 @@ const Todo: FC = () => {
     setValue("");
     setFilter(true);
 
+    let filteredItems: ITodo[] = [];
+
     switch (selectedOption) {
       case "marked":
-        const filteredItems: ITodo[] = todo.filter(
-          (item: ITodo) => item.complete === true
-        );
+        filteredItems = todo.filter((item: ITodo) => item.complete === true);
 
+        localStorage.setItem("filteredTodo", JSON.stringify(filteredItems));
         setFilteredTodo(filteredItems);
         setFilterTitle("Total marked tasks");
 
         break;
       case "not marked":
-        const filtered: ITodo[] = todo.filter(
-          (item: ITodo) => item.complete === false
-        );
-        setFilteredTodo(filtered);
+        filteredItems = todo.filter((item: ITodo) => item.complete === false);
+
+        localStorage.setItem("filteredTodo", JSON.stringify(filteredItems));
+        setFilteredTodo(filteredItems);
         setFilterTitle("Total unmarked tasks");
 
         break;
@@ -272,10 +237,15 @@ const Todo: FC = () => {
       default:
         setFilteredTodo(todo);
         setFilterTitle("Total tasks");
+        localStorage.removeItem("filteredTodo");
 
         break;
     }
   };
+
+  if (filter) {
+    localStorage.setItem("filter", JSON.stringify(filterTitle));
+  }
 
   return (
     <Section>
@@ -289,7 +259,6 @@ const Todo: FC = () => {
             value={value}
             autoFocus
             onChange={handleChange}
-            // ref={inputRef}
             onKeyDown={handelKeyboardChange}
             placeholder="Search..."
           />
@@ -309,15 +278,6 @@ const Todo: FC = () => {
             removeTodo={removeTodo}
             toggleTodo={toggleTodo}
           />
-          {/* {filterTitle && filteredTodo.length > 0 ? (
-       
-          ) : (
-            <p
-              style={{ color: "black", fontSize: "18px", textAlign: "center" }}
-            >
-              List empty
-            </p>
-          )} */}
           <p style={{ textAlign: "right" }}>
             {filterTitle} - {filteredTodo.length}
           </p>

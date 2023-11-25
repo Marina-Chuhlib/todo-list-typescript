@@ -6,6 +6,7 @@ const Section = styled.section`
   margin-right: auto;
   padding-left: 18px;
   padding-right: 18px;
+  padding-bottom:40px;
 
   @media screen and (max-width: 600px) {
     font-size: 12px;
