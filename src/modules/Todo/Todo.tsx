@@ -33,6 +33,8 @@ const Todo: FC = () => {
   const [filter, setFilter] = useState(false);
 
   let storedTodo: string | null = localStorage.getItem("filteredTodo");
+  let filteredItems: ITodo[] = [];
+
 
   const navigate: (path: string, options?: { replace?: boolean }) => void =
     useNavigate();
@@ -56,7 +58,7 @@ const Todo: FC = () => {
 
   useEffect(() => {
     if (storedTodo && filterTitle !== "Total tasks") {
-      const parsedTodo = JSON.parse(storedTodo);
+      const parsedTodo:ITodo[] = JSON.parse(storedTodo);
       setFilteredTodo(parsedTodo);
     } else {
       setFilteredTodo(todo);
@@ -78,8 +80,6 @@ const Todo: FC = () => {
 
     if (filteredItems.length === 0 || inputValue === "") {
       setFilteredTodo(todo);
-
-
     } else {
       setFilteredTodo(filteredItems);
       setFilter(true);
@@ -107,21 +107,22 @@ const Todo: FC = () => {
       if (data) {
         setTodo((prevTodo: ITodo[]) => [data, ...prevTodo]);
 
+        if (filterTitle === "Total unmarked tasks" && storedTodo) {
+          const parsedTodo:ITodo[] = JSON.parse(storedTodo);
+          const updatedFilteredTodo = [data, ...parsedTodo];
+
+          setFilteredTodo(updatedFilteredTodo);
+          localStorage.setItem(
+            "filteredTodo",
+            JSON.stringify(updatedFilteredTodo)
+          );
+        }
+
         return;
       }
     } catch (error) {
       console.log(error);
     }
-
-    // if (filterTitle === "Total unmarked tasks") {
-    //   setFilteredTodo((prevTodot: ITodo[]) => [data, ...prevTodot]);
-    //   console.log(filteredTodo, "in");
-
-      // localStorage.setItem(
-      //   "filteredTodo",
-      //   JSON.stringify(todo)
-    //   );
-    // }
   };
 
   const addTodo = (): void => {
@@ -137,10 +138,8 @@ const Todo: FC = () => {
 
     setValue("");
     postTodo(value);
-
-  
   };
-  
+
   const removeTodo = async (id: number): Promise<void> => {
     try {
       const isDeleted = await removeById(id);
@@ -214,8 +213,7 @@ const Todo: FC = () => {
     setValue("");
     setFilter(true);
 
-    let filteredItems: ITodo[] = [];
-
+    
     switch (selectedOption) {
       case "marked":
         filteredItems = todo.filter((item: ITodo) => item.complete === true);
