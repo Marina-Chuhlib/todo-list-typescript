@@ -2,7 +2,6 @@
   "name": "todo-list-typescript",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://marina-chuhlib.github.io/todo-list-typescript/",
   "dependencies": {
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
@@ -17,7 +16,6 @@
     "@types/react-dom": "^18.2.6",
     "@types/react-router-dom": "^5.3.3",
     "@types/styled-components": "^5.1.26",
-    "gh-pages": "^5.0.0",
     "intl": "^1.2.5",
     "moment": "^2.29.4",
     "react": "^18.2.0",
