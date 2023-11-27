@@ -18,7 +18,7 @@ const TodoItem: React.FC<ITodoItemProps> = (item) => {
   const moment = require("moment");
 
   const formattedDate = moment(createdAt).format("DD MMMM YYYY / HH:mm");
-  
+
   return (
     <Item>
       <div>
@@ -36,6 +36,10 @@ const TodoItem: React.FC<ITodoItemProps> = (item) => {
             height: "20px",
             "&.Mui-checked": {
               color: "#667b68",
+            },
+            "&:hover": {
+              color: "#2d4a2f",
+              boxShadow: "0 0 5px rgba(49, 81, 51, 0.68)",
             },
           }}
         />
